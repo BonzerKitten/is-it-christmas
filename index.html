@@ -145,6 +145,24 @@
   }
   p:empty { display: none; }
 
+  /* Credit: small and quiet at the bottom, above the snow and the fireworks. */
+  footer {
+    position: fixed;
+    z-index: 1;
+    left: max(16px, env(safe-area-inset-left));
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    font-size: .75rem;
+    opacity: .6;
+    text-wrap: balance;
+    text-shadow: 0 0 3px var(--base), 0 1px 10px var(--base);
+    -webkit-user-select: none;
+    user-select: none;
+    animation: surgir .9s ease-out .6s both;
+  }
+  .natal footer { opacity: .9; }  /* the gold glow behind it is bright: dimmer text gets lost */
+  @media (max-height: 280px) { footer { display: none; } }  /* no room left under the text */
+
   @keyframes surgir {
     from { opacity: 0; transform: translateY(18px); }
   }
@@ -161,7 +179,7 @@
 
   /* Less motion: still snow, still gradient, text simply there. */
   @media (prefers-reduced-motion: reduce) {
-    body::before, h1, p { animation: none; }
+    body::before, h1, p, footer { animation: none; }
     .neve i { animation: none; top: var(--y); opacity: var(--o); }
   }
 </style>
@@ -175,6 +193,8 @@
     <h1 id="titulo">Ainda não é Natal.</h1>
     <p id="linha"></p>
   </main>
+
+  <footer>Feito com carinho por Mateus Ferreira Moreira</footer>
 
   <script>
     const titulo = document.getElementById('titulo');
