@@ -259,6 +259,8 @@
     addEventListener('resize', ajustarTela);
 
     // Soft round glow of one colour, painted once and then reused as a stamp.
+    // Its alpha eases out as (1 - t)^2: it reaches zero with no slope left, so
+    // the halo melts into the background without a rim.
     const brilhos = {};
     function brilho(x, y, raio, alfa, cor) {
       let b = brilhos[cor];
@@ -266,9 +268,10 @@
         b = brilhos[cor] = document.createElement('canvas');
         b.width = b.height = 64;
         const c = b.getContext('2d'), luz = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-        luz.addColorStop(0, cor);
-        luz.addColorStop(.4, cor + '40');
-        luz.addColorStop(1, cor + '00');
+        for (let i = 0; i <= 16; i++) { // enough stops to follow the curve
+          const a = Math.round(255 * (1 - i / 16) ** 2);
+          luz.addColorStop(i / 16, cor + a.toString(16).padStart(2, '0'));
+        }
         c.fillStyle = luz;
         c.fillRect(0, 0, 64, 64);
       }
