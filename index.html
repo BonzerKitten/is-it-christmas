@@ -71,7 +71,11 @@
   * { box-sizing: border-box; }
 
   html, body { margin: 0; overflow: hidden; }
-  html { background: var(--base); }
+  html {
+    background: var(--base);
+    touch-action: manipulation;  /* fast taps never zoom */
+    -webkit-tap-highlight-color: transparent;
+  }
 
   body {
     min-height: 100vh;   /* fallback */
@@ -107,7 +111,16 @@
     animation: cair var(--t) linear var(--d) infinite;
   }
 
-  main { position: relative; z-index: 1; max-width: 100%; }
+  /* Fireworks: one canvas above the snow and behind the text. */
+  .fogos { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    -webkit-user-select: none;  /* fast clicks never select the text */
+    user-select: none;
+  }
 
   h1 {
     margin: 0;
@@ -155,6 +168,7 @@
 </head>
 <body>
   <div class="neve" id="neve" aria-hidden="true"></div>
+  <canvas class="fogos" id="fogos" aria-hidden="true"></canvas>
 
   <!-- Default text for when JavaScript is off; the script replaces it. -->
   <main aria-live="polite">
@@ -220,6 +234,110 @@
         '--d:-' + sorteio(0, duracao).toFixed(1) + 's';
       neve.appendChild(floco);
     }
+
+    // Fireworks: every press bursts into dots on one canvas. The loop runs only
+    // while a dot is alive, so an idle page does no per-frame work.
+    const tela = document.getElementById('fogos');
+    const pincel = tela.getContext('2d');
+    const semMovimento = matchMedia('(prefers-reduced-motion: reduce)');
+    const LIMITE = 320;  // most dots alive at once; the oldest give way
+    const ARRASTO = 3.4; // air drag: how fast the dots lose their speed
+    const cores = {      // a burst leans on two of the tons, plus a few faiscas
+      noite: { tons: ['#a8c8ff', '#babcff', '#d0b4ff'], faiscas: ['#ffffff', '#ffffff', '#ffe0a0'] },
+      natal: { tons: ['#ffce6e', '#ffa658', '#ff7a60'], faiscas: ['#fff6e0'] },
+    };
+    const escolher = (lista) => lista[Math.floor(Math.random() * lista.length)];
+    let pontos = [], escala = 1, anterior = 0, rodando = false;
+
+    // Canvas pixels follow the screen density (at most 2x) so dots stay crisp.
+    function ajustarTela() {
+      escala = Math.min(devicePixelRatio || 1, 2);
+      tela.width = Math.round(tela.clientWidth * escala);
+      tela.height = Math.round(tela.clientHeight * escala);
+    }
+    ajustarTela();
+    addEventListener('resize', ajustarTela);
+
+    // Soft round glow of one colour, painted once and then reused as a stamp.
+    const brilhos = {};
+    function brilho(x, y, raio, alfa, cor) {
+      let b = brilhos[cor];
+      if (!b) {
+        b = brilhos[cor] = document.createElement('canvas');
+        b.width = b.height = 64;
+        const c = b.getContext('2d'), luz = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+        luz.addColorStop(0, cor);
+        luz.addColorStop(.4, cor + '40');
+        luz.addColorStop(1, cor + '00');
+        c.fillStyle = luz;
+        c.fillRect(0, 0, 64, 64);
+      }
+      pincel.globalAlpha = alfa;
+      pincel.drawImage(b, x - raio, y - raio, raio * 2, raio * 2);
+    }
+
+    function estourar(x, y) {
+      const clima = cores[document.documentElement.classList.contains('natal') ? 'natal' : 'noite'];
+      const tons = [escolher(clima.tons), escolher(clima.tons)];
+      const porte = Math.min(1.5, Math.max(1, Math.min(innerWidth, innerHeight) / 600)); // bigger on big screens
+      // The soft flash at the point is a dot too: no radius, short life.
+      pontos.push({ x, y, vx: 0, vy: 0, g: 0, r: 0, idade: 0, vida: .3, cor: clima.faiscas[0], porte });
+      for (let i = 0; i < 40; i++) {
+        const angulo = sorteio(0, 2 * Math.PI);
+        const v = 520 * porte * Math.sqrt(sorteio(.02, 1));
+        pontos.push({
+          x, y,
+          vx: Math.cos(angulo) * v,
+          vy: Math.sin(angulo) * v,
+          g: sorteio(60, 320) * porte, // own gravity: some hang, some sink
+          r: sorteio(1, 2.8) * porte,
+          idade: 0,
+          vida: sorteio(1, 2.2),
+          pisca: sorteio(35, 70),
+          cor: Math.random() < .2 ? escolher(clima.faiscas) : escolher(tons),
+        });
+      }
+      if (pontos.length > LIMITE) pontos.splice(0, pontos.length - LIMITE);
+      if (!rodando) { rodando = true; anterior = 0; requestAnimationFrame(quadro); }
+    }
+
+    function quadro(agora) {
+      // Real elapsed time, so 60 Hz and 120 Hz look alike. Clamped, so a tab
+      // that was in the background does not make the dots jump.
+      const dt = anterior ? Math.min((agora - anterior) / 1000, .05) : 0;
+      anterior = agora;
+      const freio = Math.exp(-ARRASTO * dt), passo = (1 - freio) / ARRASTO, queda = (dt - passo) / ARRASTO;
+      pincel.setTransform(escala, 0, 0, escala, 0, 0);
+      pincel.clearRect(0, 0, tela.clientWidth, tela.clientHeight);
+      pontos = pontos.filter((p) => (p.idade += dt) < p.vida);
+      for (const p of pontos) {
+        const resto = 1 - p.idade / p.vida;
+        if (!p.r) { // the flash
+          brilho(p.x, p.y, 70 * p.porte, .6 * resto, p.cor);
+          continue;
+        }
+        p.x += p.vx * passo;
+        p.y += p.vy * passo + p.g * queda;
+        p.vx *= freio;
+        p.vy = p.vy * freio + p.g * passo;
+        let alfa = Math.min(1, resto / .25);                            // fades out at the end
+        if (resto < .45) alfa *= .6 + .4 * Math.sin(p.idade * p.pisca); // twinkles before that
+        brilho(p.x, p.y, p.r * 5, alfa * .5, p.cor); // faint glow under the dot
+        pincel.globalAlpha = alfa;
+        pincel.fillStyle = p.cor;
+        pincel.beginPath();
+        pincel.arc(p.x, p.y, p.r, 0, 7);
+        pincel.fill();
+      }
+      if (pontos.length) requestAnimationFrame(quadro);
+      else rodando = false;
+    }
+
+    // One burst per press: mouse (main button only), finger or pen.
+    addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || semMovimento.matches) return;
+      estourar(e.clientX, e.clientY);
+    });
   </script>
 </body>
 </html>
