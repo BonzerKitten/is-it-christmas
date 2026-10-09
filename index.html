@@ -163,6 +163,25 @@
   .natal footer { opacity: .9; }  /* the gold glow behind it is bright: dimmer text gets lost */
   @media (max-height: 280px) { footer { display: none; } }  /* no room left under the text */
 
+  /* The name is a link: same colour as the credit, with a thin underline. */
+  footer a {
+    position: relative;
+    color: inherit;
+    text-decoration-thickness: 1px;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+    text-underline-offset: .2em;
+  }
+  footer a::after { content: ""; position: absolute; inset: -14px -12px -14px -3px; }  /* bigger target for fingers */
+  footer a:hover, footer a:focus-visible { text-decoration-color: currentColor; }
+  footer a:focus-visible {
+    outline: 2px solid var(--texto);
+    outline-offset: 0;
+    border-radius: 2px;
+    background: var(--texto);
+    color: var(--base);
+    text-shadow: none;
+  }
+
   @keyframes surgir {
     from { opacity: 0; transform: translateY(18px); }
   }
@@ -194,7 +213,7 @@
     <p id="linha"></p>
   </main>
 
-  <footer>Feito com carinho por Mateus Ferreira Moreira</footer>
+  <footer>Feito com carinho por <a href="https://github.com/BonzerKitten" target="_blank" rel="noopener">Mateus Ferreira Moreira</a></footer>
 
   <script>
     const titulo = document.getElementById('titulo');
