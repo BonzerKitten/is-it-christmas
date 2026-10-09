@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>É Natal?</title>
+<meta name="description" content="Uma página que responde uma pergunta só: hoje é Natal?">
+<meta name="theme-color" content="#0a0e27">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎄</text></svg>">
+
+<script>
+  // Runs in <head> so the right mood is set before anything is painted.
+
+  // "Today" as [year, monthIndex, day] in the visitor's local time.
+  // Preview: ?data=YYYY-MM-DD overrides it (ignored if it is not a real date).
+  function hoje() {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(new URLSearchParams(location.search).get('data') || '');
+    if (m) {
+      const a = +m[1], mes = +m[2] - 1, d = +m[3];
+      const t = new Date(Date.UTC(a, mes, d));
+      if (t.getUTCFullYear() === a && t.getUTCMonth() === mes && t.getUTCDate() === d) return [a, mes, d];
+    }
+    const agora = new Date();
+    return [agora.getFullYear(), agora.getMonth(), agora.getDate()];
+  }
+
+  // Whole calendar days until the next December 25 (0 means today is Christmas).
+  // The local calendar dates are compared as UTC midnights, where every day is
+  // exactly 24 hours, so daylight-saving shifts cannot cause an off-by-one.
+  function diasAteNatal() {
+    const [a, mes, d] = hoje();
+    const dia = Date.UTC(a, mes, d);
+    let natal = Date.UTC(a, 11, 25);
+    if (dia > natal) natal = Date.UTC(a + 1, 11, 25);
+    return Math.round((natal - dia) / 86400000);
+  }
+
+  // Switches the visual mood: class on <html> plus the browser bar colour.
+  function aplicarClima(dias) {
+    const natal = dias === 0;
+    document.documentElement.classList.toggle('natal', natal);
+    document.querySelector('meta[name="theme-color"]').content = natal ? '#4a0812' : '#0a0e27';
+  }
+
+  aplicarClima(diasAteNatal());
+</script>
+
+<style>
+  /* Default mood: calm night. The .natal class on <html> swaps in the festive one. */
+  :root {
+    --base: #0a0e27;
+    --fundo:
+      radial-gradient(45% 40% at 22% 24%, rgba(104, 62, 168, .55), transparent 70%),
+      radial-gradient(50% 45% at 80% 82%, rgba(34, 84, 160, .5), transparent 70%),
+      linear-gradient(160deg, #070a1e 0%, #141a48 50%, #2b1754 100%);
+    --texto: #f1f3ff;
+    --sombra: 0 2px 30px rgba(4, 6, 24, .6);
+    --floco: #ffffff;
+  }
+  :root.natal {
+    --base: #4a0812;
+    --fundo:
+      radial-gradient(70% 45% at 50% 100%, rgba(244, 176, 58, .8), transparent 72%),
+      radial-gradient(45% 40% at 18% 16%, rgba(214, 48, 44, .6), transparent 70%),
+      linear-gradient(170deg, #3a0510 0%, #7c0f1d 48%, #a8321a 100%);
+    --texto: #fff6e0;
+    --sombra: 0 2px 34px rgba(60, 4, 10, .7), 0 0 60px rgba(255, 196, 92, .35);
+    --floco: #ffe3a1;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; overflow: hidden; }
+  html { background: var(--base); }
+
+  body {
+    min-height: 100vh;   /* fallback */
+    min-height: 100dvh;  /* follows mobile browser bars */
+    display: grid;
+    place-items: center;
+    padding: 24px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left));
+    color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-align: center;
+  }
+
+  /* Gradient layer, larger than the screen so it can drift using transform only. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -15%;
+    background: var(--fundo);
+    animation: deriva 26s ease-in-out infinite alternate;
+  }
+
+  /* Snow: a few dots made by the script below. Never gets in the way of the text. */
+  .neve { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+  .neve i {
+    position: absolute;
+    top: -12px;
+    left: var(--x);
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: var(--floco);
+    opacity: 0;
+    animation: cair var(--t) linear var(--d) infinite;
+  }
+
+  main { position: relative; z-index: 1; max-width: 100%; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.5rem, min(15vw, 24vh), 9rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.03em;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    text-shadow: var(--sombra);
+    animation: surgir .9s ease-out both;
+  }
+
+  p {
+    margin: .9em 0 0;
+    font-size: clamp(1.15rem, min(4.6vw, 6vh), 2.1rem);
+    font-weight: 600;
+    opacity: .85;
+    text-wrap: balance;
+    text-shadow: var(--sombra);
+    animation: surgir .9s ease-out .3s both;
+  }
+  p:empty { display: none; }
+
+  @keyframes surgir {
+    from { opacity: 0; transform: translateY(18px); }
+  }
+  @keyframes deriva {
+    from { transform: translate3d(-4%, -3%, 0) scale(1); }
+    to   { transform: translate3d(4%, 3%, 0) scale(1.08); }
+  }
+  @keyframes cair {
+    0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+    10%  { opacity: var(--o); }
+    90%  { opacity: var(--o); }
+    100% { transform: translate3d(var(--dx), calc(100vh + 24px), 0); opacity: 0; }
+  }
+
+  /* Less motion: still snow, still gradient, text simply there. */
+  @media (prefers-reduced-motion: reduce) {
+    body::before, h1, p { animation: none; }
+    .neve i { animation: none; top: var(--y); opacity: var(--o); }
+  }
+</style>
+</head>
+<body>
+  <div class="neve" id="neve" aria-hidden="true"></div>
+
+  <!-- Default text for when JavaScript is off; the script replaces it. -->
+  <main aria-live="polite">
+    <h1 id="titulo">Ainda não é Natal.</h1>
+    <p id="linha"></p>
+  </main>
+
+  <script>
+    const titulo = document.getElementById('titulo');
+    const linha = document.getElementById('linha');
+    let mostrado = null; // day count currently on screen
+
+    function atualizar() {
+      const dias = diasAteNatal();
+      if (dias === mostrado) return; // nothing changed, leave the page alone
+      mostrado = dias;
+      aplicarClima(dias);
+      titulo.textContent = dias === 0 ? 'Feliz Natal, Anna!' : 'Ainda não é Natal.';
+      linha.textContent =
+        dias === 0 ? 'Mais um ano, como prometido.' :
+        dias === 1 ? 'Falta 1 dia.' :
+        'Faltam ' + dias + ' dias.';
+    }
+
+    atualizar();
+    setInterval(atualizar, 60000); // catches midnight if the page stays open
+
+    // Snow: random size, position, speed and opacity for each dot.
+    // Negative delays make the sky look already full on load.
+    const neve = document.getElementById('neve');
+    const sorteio = (min, max) => min + Math.random() * (max - min);
+    for (let i = 0; i < 36; i++) {
+      const floco = document.createElement('i');
+      const duracao = sorteio(9, 22);
+      floco.style.cssText =
+        '--x:' + sorteio(0, 100).toFixed(1) + '%;' +
+        '--y:' + sorteio(0, 100).toFixed(1) + '%;' +
+        '--s:' + sorteio(2, 7).toFixed(1) + 'px;' +
+        '--o:' + sorteio(.15, .55).toFixed(2) + ';' +
+        '--dx:' + sorteio(-40, 40).toFixed(0) + 'px;' +
+        '--t:' + duracao.toFixed(1) + 's;' +
+        '--d:-' + sorteio(0, duracao).toFixed(1) + 's';
+      neve.appendChild(floco);
+    }
+  </script>
+</body>
+</html>
