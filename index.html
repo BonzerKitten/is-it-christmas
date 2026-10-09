@@ -166,9 +166,15 @@
     const titulo = document.getElementById('titulo');
     const linha = document.getElementById('linha');
     let mostrado = null; // day count currently on screen
+    let forcado = null;  // test switch: true forces Christmas, false forces not Christmas
 
     function atualizar() {
-      const dias = diasAteNatal();
+      let dias = diasAteNatal();
+      if (forcado === true) dias = 0;
+      if (forcado === false && dias === 0) { // really Christmas: count to next year's
+        const a = hoje()[0];
+        dias = (Date.UTC(a + 1, 11, 25) - Date.UTC(a, 11, 25)) / 86400000;
+      }
       if (dias === mostrado) return; // nothing changed, leave the page alone
       mostrado = dias;
       aplicarClima(dias);
@@ -181,6 +187,21 @@
 
     atualizar();
     setInterval(atualizar, 60000); // catches midnight if the page stays open
+
+    // Hidden test switch: typing "mateus" turns it on, then each S flips between
+    // the two versions. Only the last 6 characters typed are ever kept.
+    let digitado = '';
+    let especial = false;
+    addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.altKey || e.metaKey || !e.key || e.key.length !== 1) return;
+      const tecla = e.key.toLowerCase();
+      if (especial) {
+        if (tecla === 's' && !e.repeat) { forcado = mostrado !== 0; atualizar(); }
+        return;
+      }
+      digitado = (digitado + tecla).slice(-6);
+      if (digitado === 'mateus') { especial = true; digitado = ''; }
+    });
 
     // Snow: random size, position, speed and opacity for each dot.
     // Negative delays make the sky look already full on load.
